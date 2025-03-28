@@ -13,7 +13,7 @@ const int mqtt_port = 8883;  // Secure TLS port
 // MQTT credentials (HiveMQ Cloud)
 const char* mqtt_user = "pradhantanbir";  
 const char* mqtt_password = "Tanbir123";  
-const char* mqtt_topic = "esp32/led";  
+const char* mqtt_topic = "soundbox@tanbir@1001";  
 
 // Define LED pin
 const int ledPin = 2;  // Built-in LED on most ESP32 boards
@@ -57,6 +57,22 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
 
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+// Function to blink LED a specified number of times
+void blink_n_times(int n){
+    Serial.println("LED Blinking Started....");
+    for(int i = 0; i < n; i++){
+        digitalWrite(ledPin, HIGH);
+        delay(200);
+        digitalWrite(ledPin, LOW);
+        delay(200);
+    }
+}
+
+
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 // Function to handle received MQTT messages
 void callback(char* topic, byte* payload, unsigned int length) {
     Serial.print("Message received on topic: ");
@@ -70,12 +86,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.print("Message: ");
     Serial.println(message);
 
-    if (message == "ON") {
-        digitalWrite(ledPin, HIGH);  // Turn LED on
-        Serial.println("LED ON");
-    } else if (message == "OFF") {
-        digitalWrite(ledPin, LOW);  // Turn LED off
-        Serial.println("LED OFF");
+    if (message.length() > 0) {
+        int no_of_blink = atoi(message.c_str()); // Convert string to integer
+        no_of_blink %= 10; // Ensure no_of_blink is between 0 and 9
+        blink_n_times(no_of_blink);  // Call the blink function
+    } else {
+        Serial.println("Received empty message.");
     }
 }
 
@@ -94,6 +110,7 @@ void reconnect() {
         }
     }
 }
+
 
 // Setup function
 void setup() {
