@@ -17,14 +17,14 @@ std::vector<String> generateFileBuffer(int number) {
         if (number >= 1000) {
             int thousands = number / 1000;
             buffer.push_back("/Soundbox/" + String(thousands) + ".wav");
-            buffer.push_back("/Soundbox/Thousand.wav");
+            buffer.push_back("/Soundbox/1000.wav");
             number %= 1000;
         }
 
         if (number >= 100) {
             int hundreds = number / 100;
             buffer.push_back("/Soundbox/" + String(hundreds) + ".wav");
-            buffer.push_back("/Soundbox/Hundred.wav");
+            buffer.push_back("/Soundbox/100.wav");
             number %= 100;
         }
 
