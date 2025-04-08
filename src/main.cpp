@@ -1,25 +1,29 @@
+#include <Arduino.h>
+#include "SoundboxLogic.h"
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 
+//  ++++++++++++++++++++++++++++++++++++++++  Basic Credentials  ++++++++++++++++++++++++++++++
+
 // WiFi credentials
-const char* ssid = "V2029";  
-const char* password = "tanbir123";  
+const char *ssid = "V2029";
+const char *password = "tanbir123";
 
 // HiveMQ Cloud MQTT Broker
-const char* mqtt_server = "3c07990e59c44be0afbc193bdbf9af31.s1.eu.hivemq.cloud";  // Example: "yourcluster.s1.eu.hivemq.cloud"
-const int mqtt_port = 8883;  // Secure TLS port
+const char *mqtt_server = "3c07990e59c44be0afbc193bdbf9af31.s1.eu.hivemq.cloud"; // Example: "yourcluster.s1.eu.hivemq.cloud"
+const int mqtt_port = 8883;                                                      // Secure TLS port
 
 // MQTT credentials (HiveMQ Cloud)
-const char* mqtt_user = "pradhantanbir";  
-const char* mqtt_password = "Tanbir123";  
-const char* mqtt_topic = "soundbox@tanbir@1001";  
+const char *mqtt_user = "pradhantanbir";
+const char *mqtt_password = "Tanbir123";
+const char *mqtt_topic = "soundbox@tanbir@1001";
 
 // Define LED pin
-const int ledPin = 2;  // Built-in LED on most ESP32 boards
+const int ledPin = 2; // Built-in LED on most ESP32 boards
 
 // Root CA certificate (HiveMQ Cloud / Let's Encrypt ISRG Root X1)
-const char* ca_cert = R"EOF(
+const char *ca_cert = R"EOF(
 -----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
 TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
@@ -57,86 +61,100 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
 
-// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-// Function to blink LED a specified number of times
-void blink_n_times(int n){
-    Serial.println("LED Blinking Started....");
-    for(int i = 0; i < n; i++){
-        digitalWrite(ledPin, HIGH);
-        delay(200);
-        digitalWrite(ledPin, LOW);
-        delay(200);
-    }
-}
-
-
-// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// ++++++++++++++++++++++++++++++++++++   MQTT   +++++++++++++++
 
 // Function to handle received MQTT messages
-void callback(char* topic, byte* payload, unsigned int length) {
-    Serial.print("Message received on topic: ");
-    Serial.println(topic);
+void callback(char *topic, byte *payload, unsigned int length)
+{
+  Serial.print("Message received on topic: ");
+  Serial.println(topic);
 
-    String message = "";
-    for (int i = 0; i < length; i++) {
-        message += (char)payload[i];
-    }
-    
-    Serial.print("Message: ");
-    Serial.println(message);
+  String message = "";
+  for (int i = 0; i < length; i++)
+  {
+    message += (char)payload[i];
+  }
 
-    if (message.length() > 0) {
-        int no_of_blink = atoi(message.c_str()); // Convert string to integer
-        no_of_blink %= 10; // Ensure no_of_blink is between 0 and 9
-        blink_n_times(no_of_blink);  // Call the blink function
-    } else {
-        Serial.println("Received empty message.");
-    }
+  Serial.print("Message: ");
+  Serial.println(message);
+
+  if (message.length() > 0)
+  {
+    int number = atoi(message.c_str()); // Convert string to integer
+    std::vector<String> fileBuffer = generateFileBuffer(number);
+    playAudioFiles(fileBuffer); // Play the files sequentially
+  }
+  else
+  {
+    Serial.println("Received empty message.");
+  }
 }
 
 // Function to reconnect to MQTT broker
-void reconnect() {
-    while (!client.connected()) {
-        Serial.print("Connecting to MQTT... ");
-        if (client.connect("ESP32Client", mqtt_user, mqtt_password)) {
-            Serial.println("Connected!");
-            client.subscribe(mqtt_topic);
-        } else {
-            Serial.print("Failed (Error Code: ");
-            Serial.print(client.state());
-            Serial.println("). Retrying in 5 seconds...");
-            delay(5000);
-        }
+void reconnect()
+{
+  while (!client.connected())
+  {
+    Serial.print("Connecting to MQTT... ");
+    if (client.connect("ESP32Client", mqtt_user, mqtt_password))
+    {
+      Serial.println("Connected!");
+      client.subscribe(mqtt_topic);
     }
+    else
+    {
+      Serial.print("Failed (Error Code: ");
+      Serial.print(client.state());
+      Serial.println("). Retrying in 5 seconds...");
+      delay(5000);
+    }
+  }
 }
 
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-// Setup function
-void setup() {
-    Serial.begin(115200);
-    pinMode(ledPin, OUTPUT);
-    digitalWrite(ledPin, LOW);
+void setup()
+{
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println("==== ESP32 Soundbox WAV Playback Start ====");
 
-    WiFi.begin(ssid, password);
-    Serial.print("Connecting to WiFi");
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
-    }
-    Serial.println("\nWiFi connected!");
+  if (!SD.begin())
+  {
+    Serial.println("❌ SD init failed");
+    while (1)
+      ;
+  }
+  Serial.println("✅ SD initialized");
 
-    espClient.setCACert(ca_cert);  // Load CA certificate
-    client.setServer(mqtt_server, mqtt_port);
-    client.setCallback(callback);
+  out = new AudioOutputI2S();
+  out->SetPinout(26, 22, 25); // BCLK, LRC, DIN
+  out->SetGain(1.0);
 
+  // Setup for web servers
+
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi connected!");
+
+  espClient.setCACert(ca_cert); // Load CA certificate
+  client.setServer(mqtt_server, mqtt_port);
+  client.setCallback(callback);
+
+  reconnect();
+}
+
+void loop()
+{
+  if (!client.connected())
+  {
     reconnect();
+  }
+  client.loop();
 }
 
-// Loop function
-void loop() {
-    if (!client.connected()) {
-        reconnect();
-    }
-    client.loop();
-}
