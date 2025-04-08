@@ -19,8 +19,6 @@ const char *mqtt_user = "pradhantanbir";
 const char *mqtt_password = "Tanbir123";
 const char *mqtt_topic = "soundbox@tanbir@1001";
 
-// Define LED pin
-const int ledPin = 2; // Built-in LED on most ESP32 boards
 
 // Root CA certificate (HiveMQ Cloud / Let's Encrypt ISRG Root X1)
 const char *ca_cert = R"EOF(
@@ -122,8 +120,6 @@ void setup()
   if (!SD.begin())
   {
     Serial.println("❌ SD init failed");
-    while (1)
-      ;
   }
   Serial.println("✅ SD initialized");
 
